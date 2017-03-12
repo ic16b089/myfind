@@ -673,7 +673,12 @@ while ((dire = readdir(dirp)) != NULL) {
 
     unsigned long pfadlaenge = strlen(dir_path) + strlen(dire->d_name);
     char pfad[pfadlaenge];
-    sprintf(pfad, "%s/%s", dir_path, dire->d_name);
+
+    /* handle if the given path has a '/' at the end */
+    if  (dir_path[strlen(dir_path)-1] == '/')
+      sprintf(pfad, "%s%s", dir_path, dire->d_name);
+    else
+      sprintf(pfad, "%s/%s", dir_path, dire->d_name);
 
 
 
