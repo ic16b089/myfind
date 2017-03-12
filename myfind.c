@@ -631,11 +631,17 @@ void do_file(char *file_path, s_optns *p, struct stat *attr) {
 }
 
 /** \brief
- * gathering informations about the given directory and process them:
+ * main task of this function is to gather informations about the given directory and process them:
  *
- * this function goes rekursively trough all levels of the given directory
- * it is called once in main and processes all by commandline given task
- * */
+ * it is called once in main and processes the by commandline given object
+ * it opens the Directory and goes rekursively trough all levels
+ * it loops trough all objects in the directory
+ * handle '..' and '.' to avoid endless loops
+ * get attributes of actual object
+ * handle if the given path has a '/' at the end
+ * and calls recursivly do_dir() after do_file() if an directory found, else it only calls do_file()
+ **/
+
 void do_dir(char *dir_path, s_optns *params, struct stat sb) {
 
 DIR * dirp;
@@ -643,11 +649,9 @@ struct dirent * dire;
 int ret = 0;
 
 
-/* open given Directory to walk trough it all levels */
 errno = 0;
 dirp = opendir(dir_path);
 if(dirp == NULL){
-  /* fprintf(stderr, "Can't open %s! Error: %s\n", dir_path, *params); */
   fprintf(stderr, "myfind: Can't open %s! Error!\n", dir_path);
     if(errno != 0){
         fprintf(stderr, "Error: %s\n", strerror(errno));
@@ -655,17 +659,9 @@ if(dirp == NULL){
     return;
 }
 
-/* scan the full directorie and it's objects */
 errno = 0;
 while ((dire = readdir(dirp)) != NULL) {
-    if (errno != 0) {
-        /* fprintf(stderr, "%s: Can't open readdir! Error: %s \n", *params, strerror(errno)); */
-        fprintf(stderr, "myfind: Can't open readdir! Error: %s \n", strerror(errno));
-        errno = 0;
-        continue;
-    }
 
-    /* handle .. and . to avoid endless loops */
     if ((strcmp(dire->d_name, ".")) == 0 || (strcmp(dire->d_name, "..")) == 0)
     {
         continue;
@@ -674,7 +670,6 @@ while ((dire = readdir(dirp)) != NULL) {
     unsigned long pfadlaenge = strlen(dir_path) + strlen(dire->d_name);
     char pfad[pfadlaenge];
 
-    /* handle if the given path has a '/' at the end */
     if  (dir_path[strlen(dir_path)-1] == '/')
       sprintf(pfad, "%s%s", dir_path, dire->d_name);
     else
@@ -682,14 +677,12 @@ while ((dire = readdir(dirp)) != NULL) {
 
 
 
-    /* get attributes of actual object */
     ret = lstat(pfad, &sb);
     if (ret == -1) {
         fprintf(stderr, "myfind: (%s): %s\n", pfad, strerror(errno));
         exit(EXIT_FAILURE);
     }
 
-    /* call recursivly do_dir() after do_file() if directory found else only call do_file() */
     if(S_ISDIR(sb.st_mode)) {
         do_file(pfad, params, &sb);
         do_dir(pfad, params, sb);
@@ -702,13 +695,14 @@ while ((dire = readdir(dirp)) != NULL) {
 
 
 }
-if (dire == NULL && errno != 0){
-  /* fprintf(stderr, "%s: Can't open readdir! Error: %s \n", *params, strerror(errno)); */
-  fprintf(stderr, "Can't open readdir! Error: %s \n", strerror(errno));
-    errno = 0;
-}
 
-closedir(dirp);
+if(closedir(dirp) == -1) {
+fprintf(stderr, "myfind: Can't close %s! Error!\n", dir_path);
+  if(errno != 0){
+      fprintf(stderr, "Error: %s\n", strerror(errno));
+  }
+  return;
+}
 
 
 
